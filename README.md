@@ -1,2 +1,3 @@
 # docker-compose
-Docker compose configurations
+
+Docker compose configurations for various home services.

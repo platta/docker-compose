@@ -1,0 +1,13 @@
+version: "3"
+
+services:
+  cpuminer:
+    container_name: cpuminer
+    build: .
+    environment:
+      - ALGO=???
+      - URL=???
+      - EMAIL=???
+      - PASSWORD=???
+      - THREADS=???
+    restart: unless-stopped

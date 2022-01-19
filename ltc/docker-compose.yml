@@ -1,0 +1,13 @@
+version: "3"
+services:
+  litecoind:
+    container_name: ltc
+    build: .
+    ports:
+      - "9332:9332"
+      - "9333:9333"
+      - "19332:19332"
+      - "19333:19333"
+    volumes:
+      - /coins/ltc:/root/.litecoin
+    restart: unless-stopped

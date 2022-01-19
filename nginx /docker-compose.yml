@@ -1,0 +1,16 @@
+version: "3"
+
+services:
+  nginx:
+    container_name: nginx
+    hostname: nginx
+    image: nginx:latest
+    ports:
+      - 80:80
+      - 443:443
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./config:/etc/nginx/conf.d
+      - ./certs:/etc/ssl/private
+    restart: unless-stopped
