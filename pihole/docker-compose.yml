@@ -10,13 +10,19 @@ services:
       - "53:53/udp"
       - "8080:80/tcp"
     environment:
-      TZ: ???
-      WEBPASSWORD: ???
+      TZ: $TIME_ZONE
+      WEBPASSWORD: $WEB_PASSWORD
       VIRTUAL_HOST: pihole
-      FTLCONF_REPLY_ADDR4: ???
+      FTLCONF_REPLY_ADDR4: $FTL_REPLY_ADDR4
     volumes:
-      - "./etc-pihole/:/etc/pihole/"
-      - "./etc-dnsmasq.d/:/etc/dnsmasq.d/"
+      - data:/etc/pihole
+      - dnsmasq:/etc/dnsmasq.d
     cap_add:
       - NET_ADMIN
     restart: unless-stopped
+
+volumes:
+  data:
+    driver: local
+  dnsmasq:
+    driver: local
