@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+  homebridge:
+    image: oznu/homebridge:raspberry-pi
+    container_name: homebridge
+    network_mode: host
+    volumes:
+      - data:/homebridge
+    environment:
+      - PGID=$GROUP_ID
+      - PUID=$USER_ID
+      - HOMEBRIDGE_CONFIG_UI=1
+      - HOMEBRIDGE_CONFIG_UI_PORT=8080
+    restart: unless-stopped
+
+volumes:
+  data:
+    driver: local
