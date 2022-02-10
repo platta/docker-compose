@@ -3,11 +3,11 @@ version: "3"
 services:
   cpuminer:
     container_name: cpuminer
-    build: .
+    image: $IMAGE
     environment:
-      - ALGO=???
-      - URL=???
-      - EMAIL=???
-      - PASSWORD=???
-      - THREADS=???
+      - ALGO=$ALGO
+      - URL=$URL
+      - EMAIL=$EMAIL
+      - PASSWORD=$PASSWORD
+      - THREADS=$THREADS
     restart: unless-stopped
