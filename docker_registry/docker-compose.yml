@@ -9,6 +9,8 @@ services:
     volumes:
       - data:/var/lib/registry
 
+    restart: unless-stopped
+
 volumes:
   data:
     driver: local
