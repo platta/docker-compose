@@ -11,6 +11,12 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./config:/etc/nginx/conf.d
-      - ./certs:/etc/ssl/private
+      - config:/etc/nginx/conf.d
+      - certs:/etc/ssl/private
     restart: unless-stopped
+
+volumes:
+  config:
+    driver: local
+  certs:
+    driver: local

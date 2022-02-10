@@ -12,6 +12,7 @@ services:
     environment:
       TZ: ???
       WEBPASSWORD: ???
+      VIRTUAL_HOST: pihole
       FTLCONF_REPLY_ADDR4: ???
     volumes:
       - "./etc-pihole/:/etc/pihole/"
