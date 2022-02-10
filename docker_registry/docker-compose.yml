@@ -7,7 +7,7 @@ services:
     ports:
       - 5000:5000
     volumes:
-      data:/var/lib/registry
+      - data:/var/lib/registry
 
 volumes:
   data:
