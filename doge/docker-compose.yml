@@ -1,13 +1,17 @@
 version: "3"
 services:
-  dogecoind:
+  doge:
     container_name: doge
-    build: .
+    image: $IMAGE
     ports:
       - "22555:22555"
       - "22556:22556"
       - "44555:44555"
       - "44556:44556"
     volumes:
-      - /coins/doge:/root/.dogecoin
+      - data:/root/.dogecoin
     restart: unless-stopped
+
+volumes:
+  data:
+    driver: local

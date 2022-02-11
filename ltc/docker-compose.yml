@@ -1,13 +1,17 @@
 version: "3"
 services:
-  litecoind:
+  ltc:
     container_name: ltc
-    build: .
+    image: $IMAGE
     ports:
       - "9332:9332"
       - "9333:9333"
       - "19332:19332"
       - "19333:19333"
     volumes:
-      - /coins/ltc:/root/.litecoin
+      - data:/root/.litecoin
     restart: unless-stopped
+
+volumes:
+  data:
+    driver: local
