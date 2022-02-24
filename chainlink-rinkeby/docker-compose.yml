@@ -35,7 +35,7 @@ services:
   # chainlink node
   chainlink:
     container_name: chainlink-rinkeby
-    image: smartcontract/chainlink:1.1.0
+    image: smartcontract/chainlink:1.1.1
     command: local n -p /chainlink/.password -a /chainlink/.api
 
     environment:
