@@ -7,7 +7,7 @@ services:
     container_name: geth-rinkeby
     hostname: $ETH_HOST
     image: ethereum/client-go:stable
-    command: --rinkeby --http --http.addr 0.0.0.0 --http.port $ETH_HTTP_PORT --http.origins="*" --ws --ws.addr 0.0.0.0 --ws.port $ETH_WS_PORT --ws.origins="*" --datadir /geth
+    command: --rinkeby --http --http.addr 0.0.0.0 --http.port $ETH_HTTP_PORT --http.corsdomain="*" --ws --ws.addr 0.0.0.0 --ws.port $ETH_WS_PORT --ws.origins="*" --datadir /geth
 
     volumes:
       - eth:/geth
