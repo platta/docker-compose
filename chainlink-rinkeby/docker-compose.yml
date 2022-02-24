@@ -45,7 +45,7 @@ services:
       CHAINLINK_TLS_PORT: 0
       SECURE_COOKIES: "false"
       ALLOW_ORIGINS: "*"
-      ETH_URL: ws://$ETH_HOST:$ETH_PORT
+      ETH_URL: ws://$ETH_HOST:$ETH_WS_PORT
       DATABASE_URL: postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:5432/$DB_DATABASE?sslmode=disable
 
     volumes:
