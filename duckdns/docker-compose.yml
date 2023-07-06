@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  #-----------------------------------------------------------------------------
+  # DuckDNS
+  # Maintains a DuckDNS record with your public IP.
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    environment:
+      # Comma separated (no space) list of subdomains to maintain (e.g.
+      # subdomain1,subdomain2 without the "duckdns.org").
+      SUBDOMAINS: $SUBDOMAINS
+      # Inject authentication token.
+      FILE__TOKEN: /run/secrets/duckdns_token
+
+    secrets:
+      - duckdns_token
+
+    networks:
+      - net
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: duckdns|duckdns
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "duckdns|duckdns"
+
+secrets:
+  duckdns_token:
+    external: true
+
+networks:
+  net:
+    driver: overlay
