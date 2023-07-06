@@ -1,13 +1,37 @@
-version: "3"
+version: "3.8"
 
 services:
+  #-----------------------------------------------------------------------------
+  # Portainer Agent
+  # Makes Docker information from each swarm node available to the Portainer
+  # server.
   portainer_agent:
     image: portainer/agent:latest
-    container_name: portainer_agent
-    ports:
-      - "9001:9001"
+
     volumes:
+      # Grant access to the docker engine.
       - /var/run/docker.sock:/var/run/docker.sock
+      # Grant access to docker volumes folder.
       - /var/lib/docker/volumes:/var/lib/docker/volumes
 
-    restart: unless-stopped
+    networks:
+      - net
+
+    ports:
+      - "9001:9001"
+
+    deploy:
+      # This container needs to be running on each node.
+      mode: global
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: portainer|portainer-agent
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "portainer|portainer-agent"
+
+networks:
+  net:
+    driver: overlay
