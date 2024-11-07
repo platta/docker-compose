@@ -1,14 +1,19 @@
-version: "3"
+version: "3.8"
 
 services:
   #-----------------------------------------------------------------------------
-  # The Lounge
-  # Persistent IRC client built in HTML5.
-  thelounge:
-    image: thelounge/thelounge:latest
+  # Foundry VTT
+  # Virtual Table Top for gaming.
+  foundry:
+    image: felddy/foundryvtt:release
 
     volumes:
-      - data:/var/opt/thelounge
+      - data:/data
+
+    environment:
+      FOUNDRY_USERNAME: $FOUNDRY_USERNAME
+      FOUNDRY_PASSWORD: $FOUNDRY_PASSWORD
+      FOUNDRY_ADMIN_KEY: $FOUNDRY_ADMIN_KEY
 
     networks:
       - net
@@ -17,12 +22,12 @@ services:
     deploy:
       labels:
         # Prometheus job label for querying via Prometheus.
-        prometheus-job: thelounge|thelounge
+        prometheus-job: foundry|foundry
 
     logging:
       options:
         # Log tagging for querying via Loki.
-        tag: "thelounge|thelounge"
+        tag: "foundry|foundry"
 
 volumes:
   data:

@@ -1,4 +1,20 @@
+#-------------------------------------------------------------------------------
+# NGINX Stack
+#-------------------------------------------------------------------------------
 version: "3.8"
+
+# Define Swarm Config names up top.
+x-nginx-conf: &nginx-conf nginx_nginx.conf_2024-01-28_1410
+x-nginx-snippets-auth: &nginx-snippets-auth nginx_nginx_snippets_auth.conf
+x-nginx-snippets-authelia: &nginx-snippets-authelia nginx_nginx_snippets_authelia.conf
+x-nginx-snippets-proxysettings: &nginx-snippets-proxysettings nginx_nginx_snippets_proxysettings.conf_2022-08-08_1146
+x-authelia-configuration: &authelia-configuration nginx_authelia_configuration.yml_2024-01-05_1349
+
+# Define Swarm Secret names up top.
+x-authelia-users-database: &authelia-users-database nginx_authelia_users_database.yml_2024-01-05_1349
+x-authelia-jwt-secret: &authelia-jwt-secret nginx_authelia_jwt_secret
+x-authelia-session-secret: &authelia-session-secret nginx_authelia_session_secret
+x-authelia-storage-encryption-key: &authelia-storage-encryption-key nginx_authelia_storage_encryption_key
 
 services:
   #-----------------------------------------------------------------------------
@@ -11,15 +27,15 @@ services:
 
     configs:
       # Inject configuration file.
-      - source: nginx_nginx.conf_2022-08-08_1212
+      - source: *nginx-conf
         target: /etc/nginx/nginx.conf
       # Inject snippets necessary for Authelia.
-      - source: nginx_nginx_snippets_auth.conf
+      - source: *nginx-snippets-auth
         target: /etc/nginx/snippets/auth.conf
-      - source: nginx_nginx_snippets_authelia.conf
+      - source: *nginx-snippets-authelia
         target: /etc/nginx/snippets/authelia.conf
       # Inject snippet for common proxy settings.
-      - source: nginx_nginx_snippets_proxysettings.conf_2022-08-08_1146
+      - source: *nginx-snippets-proxysettings
         target: /etc/nginx/snippets/proxysettings.conf
 
     volumes:
@@ -35,28 +51,21 @@ services:
       - shared_net
 
     extra_hosts:
+      # This is needed so the NGINX configuration files can reference localhost.
       - host.docker.internal:host-gateway
 
     # This is the only service in your entire system that should expose any
-    # ports.
+    # ports for web browser traffic.
     ports:
       - "80:80"
       - "443:443"
 
     deploy:
-      labels:
-        # Prometheus job label for querying via Prometheus.
-        prometheus-job: nginx|nginx
       update_config:
         # When updating the service, stat the new container first, then wait 10
         # seconds before killing the old one. Ensures continuity.
         order: start-first
         delay: 10s
-
-    logging:
-      options:
-        # Log tagging for querying via Loki.
-        tag: "nginx|nginx"
 
   #-----------------------------------------------------------------------------
   # Certbot
@@ -74,16 +83,6 @@ services:
     networks:
       - net
 
-    deploy:
-      labels:
-        # Prometheus job label for querying via Prometheus.
-        prometheus-job: nginx|certbot
-
-    logging:
-      options:
-        # Log tagging for querying via Loki.
-        tag: "nginx|certbot"
-
   #-----------------------------------------------------------------------------
   # Authelia
   # Authentication gateway, username and password plus MFA.
@@ -91,18 +90,17 @@ services:
     image: authelia/authelia:latest
 
     secrets:
-      - source: nginx_authelia_users_database.yml
+      - source: *authelia-users-database
         target: /config/users_database.yml
-      - source: nginx_authelia_jwt_secret
+      - source: *authelia-jwt-secret
         target: /secrets/jwt_secret
-      - source: nginx_authelia_session_secret
+      - source: *authelia-session-secret
         target: /secrets/session_secret
-      - source: nginx_authelia_storage_encryption_key
+      - source: *authelia-storage-encryption-key
         target: /secrets/storage_encryption_key
 
     configs:
-      - source: nginx_authelia_configuration.yml_2022-08-08_1157
-      #- source: nginx_authelia_configuration.yml_short_timeout
+      - source: *authelia-configuration
         target: /config/configuration.yml
 
     volumes:
@@ -116,16 +114,6 @@ services:
     networks:
       - net
 
-    deploy:
-      labels:
-        # Prometheus job label for querying via Prometheus.
-        prometheus-job: nginx|authelia
-
-    logging:
-      options:
-        # Log tagging for querying via Loki.
-        tag: "nginx|authelia"
-
   #-----------------------------------------------------------------------------
   # Redis
   # Distributed key/value store. Used by Authelia.
@@ -138,37 +126,26 @@ services:
     networks:
       - net
 
-    deploy:
-      labels:
-        # Prometheus job label for querying via Prometheus.
-        prometheus-job: nginx|redis
-
-    logging:
-      options:
-        # Log tagging for querying via Loki.
-        tag: "nginx|redis"
-
 secrets:
-  nginx_authelia_users_database.yml:
+  *authelia-users-database :
     external: true
-  nginx_authelia_jwt_secret:
+  *authelia-jwt-secret :
     external: true
-  nginx_authelia_session_secret:
+  *authelia-session-secret :
     external: true
-  nginx_authelia_storage_encryption_key:
+  *authelia-storage-encryption-key :
     external: true
 
 configs:
-  nginx_nginx.conf_2022-08-08_1212:
+  *nginx-conf :
     external: true
-  nginx_nginx_snippets_auth.conf:
+  *nginx-snippets-auth :
     external: true
-  nginx_nginx_snippets_authelia.conf:
+  *nginx-snippets-authelia :
     external: true
-  nginx_nginx_snippets_proxysettings.conf_2022-08-08_1146:
+  *nginx-snippets-proxysettings :
     external: true
-  nginx_authelia_configuration.yml_2022-08-08_1157:
-  #nginx_authelia_configuration.yml_short_timeout:
+  *authelia-configuration :
     external: true
 
 volumes:

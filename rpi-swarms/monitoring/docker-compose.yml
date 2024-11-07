@@ -1,0 +1,78 @@
+# Monitoring stack
+version: "3.8"
+
+services:
+  #-----------------------------------------------------------------------------
+  # Node exporter
+  # Publishes host metrics for Prometheus to scrape.
+  node-exporter:
+    image: prom/node-exporter:latest
+
+    command:
+      # Tell node-exporter where to find the host's root.
+      - --path.rootfs=/hostfs
+
+    volumes:
+      # Mount the root of the host inside the container for scraping.
+      - /:/hostfs
+
+    networks:
+      - net
+
+    ports:
+      - 9100:9100
+
+    deploy:
+      # Deploy globally so one instance runs on each Swarm node.
+      mode: global
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: monitoring|node-exporter
+      update_config:
+        # When updating the service, stat the new container first, then wait 10
+        # seconds before killing the old one. Ensures continuity.
+        order: start-first
+        delay: 10s
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "monitoring|node-exporter"
+
+  #-----------------------------------------------------------------------------
+  # Promtail
+  # Publishes Docker log information to Loki.
+  promtail:
+    image: grafana/promtail:latest
+
+    configs:
+      # Inject Promtail config.
+      - source: monitoring_promtail_config.yml_2022-08-22_1435
+        target: /etc/promtail/config.yml
+
+    volumes:
+      # Grant access to Docker.
+      - /var/lib/docker/containers:/var/lib/docker/containers
+
+    networks:
+      - net
+
+    deploy:
+      mode: global
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: monitoring|promtail
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "monitoring|promtail"
+
+configs:
+  monitoring_promtail_config.yml_2022-08-22_1435:
+    external: true
+
+networks:
+  net:
+    driver: overlay
+

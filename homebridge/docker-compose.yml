@@ -1,19 +1,42 @@
 version: "3"
 
 services:
+  #-----------------------------------------------------------------------------
+  # HomeBridge
+  # Smart home bridge device.
   homebridge:
     image: oznu/homebridge:raspberry-pi
-    container_name: homebridge
-    network_mode: host
+
     volumes:
       - data:/homebridge
+
     environment:
       - PGID=$GROUP_ID
       - PUID=$USER_ID
       - HOMEBRIDGE_CONFIG_UI=1
       - HOMEBRIDGE_CONFIG_UI_PORT=8080
-    restart: unless-stopped
+
+    networks:
+      - net
+
+    # This is important for the way HomeBridge communicates with other smart
+    # devices on the network.
+    network_mode: host
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: homebridge|homebridge
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "homebridge|homebridge"
 
 volumes:
   data:
     driver: local
+
+networks:
+  net:
+    driver: overlay

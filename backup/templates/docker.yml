@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  #----------------
+  # Docker Registry
+  registry:
+    image: registry:latest
+
+    volumes:
+      - registry_data:/var/lib/registry
+
+    networks:
+      - net
+
+    ports:
+      - "5000:5000"
+
+
+volumes:
+  registry_data:
+    driver: local
+
+networks:
+  net:
+    driver: overlay

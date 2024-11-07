@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  #-----------------------------------------------------------------------------
+  # NGINX
+  # Reverse proxy, SSL termination, general point of ingress for all incoming
+  # traffic.
+  nginx:
+    image: nginx:latest
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+    configs:
+      # Inject configuration file.
+      - source: nginx_nginx.conf
+        target: /etc/nginx/nginx.conf
+      # Inject snippet for common proxy settings.
+      - source: nginx_nginx_snippets_proxysettings.conf
+        target: /etc/nginx/snippets/proxysettings.conf
+
+    networks:
+      - net
+      - shared_net
+
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+    # This is the only service in your entire system that should expose any
+    # ports.
+    ports:
+      - "80:80"
+      - "443:443"
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: nginx|nginx
+      update_config:
+        # When updating the service, stat the new container first, then wait 10
+        # seconds before killing the old one. Ensures continuity.
+        order: start-first
+        delay: 10s
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "nginx|nginx"
+
+configs:
+  nginx_nginx.conf:
+    external: true
+  nginx_nginx_snippets_proxysettings.conf:
+    external: true
+
+networks:
+  net:
+    driver: overlay
+  shared_net:
+    external: true
+

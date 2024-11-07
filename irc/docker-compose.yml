@@ -1,0 +1,92 @@
+version: "3.8"
+
+services:
+
+  #---------
+  # InspIRCd
+  server:
+    image: inspircd/inspircd-docker:latest
+    hostname: irc.plattsoft.net
+    user: root
+    command: --runasroot
+
+    environment:
+      INSP_ADMIN_NAME: Adam Platt
+      INSP_ADMIN_NICK: platta
+      INSP_ADMIN_EMAIL: adam@plattsoft.net
+
+      INSP_SERVER_NAME: $INSP_SERVER_NAME
+      INSP_NET_SUFFIX: $INSP_NET_SUFFIX
+
+      INSP_SERVICES_NAME: $INSP_SERVICES_NAME
+      INSP_SERVICES_PASSWORD: $INSP_SERVICES_PASSWORD
+      INSP_SERVICES_ALLOWMASK: "0.0.0.0/0"
+
+      INSP_OPER_FINGERPRINT: $INSP_OPER_FINGERPRINT
+
+    volumes:
+      - inspircd_conf:/inspircd/conf
+      - inspircd_logs:/inspircd/logs
+      # Letsencrypt certificates are stored here when Certbot creates/updates
+      # them.
+      - nginx_letsencrypt_data:/etc/letsencrypt
+
+    networks:
+      - net
+
+    ports:
+      - "6667:6667"
+      - "6697:6697"
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: irc|inspircd
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "irc|inspircd"
+
+  #---------------
+  # anope services
+  services:
+    image: anope/anope:latest
+    hostname: services.plattsoft.net
+
+    environment:
+      ANOPE_SERVICES_NAME: $INSP_SERVICES_NAME
+      ANOPE_UPLINK_IP: irc_server
+      ANOPE_UPLINK_PASSWORD: $INSP_SERVICES_PASSWORD
+
+    volumes:
+      - anope_data:/data
+
+    networks:
+      - net
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: irc|anope
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "irc|anope"
+
+volumes:
+  anope_data:
+    driver: local
+  inspircd_conf:
+    driver: local
+  inspircd_logs:
+    driver: local
+  nginx_letsencrypt_data:
+    external: true
+
+networks:
+  net:
+    driver: overlay
+  #nginx_net:
+  #  external: true

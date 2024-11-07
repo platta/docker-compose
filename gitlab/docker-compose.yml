@@ -1,0 +1,44 @@
+version: "3.8"
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://gitlab.plattsoft.net'
+        # Add any other gitlab.rb configuration here, each on its own line
+
+    volumes:
+      - config:/etc/gitlab
+      - data:/var/opt/gitlab
+      - logs:/var/log/gitlab
+
+    # shm_size: '256m'
+
+    networks:
+      - net
+      - shared_net
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: gitlab|gitlab
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "gitlab|gitlab"
+
+volumes:
+  config:
+    driver: local
+  data:
+    driver: local
+  logs:
+    driver: local
+
+networks:
+  net:
+    driver: overlay
+  shared_net:
+    external: true

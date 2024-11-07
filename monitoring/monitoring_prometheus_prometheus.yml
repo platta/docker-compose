@@ -1,0 +1,65 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: docker
+    dockerswarm_sd_configs:
+      - host: unix:///var/run/docker.sock
+        role: tasks
+        port: 9090
+    relabel_configs:
+      # Only keep containers that should be running.
+      - source_labels: [__meta_dockerswarm_task_desired_state]
+        regex: running
+        action: keep
+      # Only scrape services with this flag set.
+      - source_labels: [__meta_dockerswarm_service_label_prometheus_scrape]
+        regex: true
+        action: keep
+      # Filter for the correct network
+      - source_labels: [__meta_dockerswarm_network_name]
+        regex: monitoring_net
+        action: keep
+      # Pull node id.
+      - source_labels: [__meta_dockerswarm_node_id]
+        target_label: swarm_node
+      # Pull stack name.
+      - source_labels: [__meta_dockerswarm_service_label_com_docker_stack_namespace]
+        target_label: swarm_stack
+      # Pull service name.
+      - source_labels: [__meta_dockerswarm_service_name]
+        target_label: swarm_service
+      # Grab the path to hit for metrics.
+      - action: replace
+        regex: (.+)
+        source_labels:
+          - __meta_dockerswarm_service_label_prometheus_path
+        target_label: __metrics_path__
+      # Set the host and port to hit.
+      - action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+          - __address__
+          - __meta_dockerswarm_service_label_prometheus_port
+        target_label: __address__
+
+  # http node exporter
+  - job_name: node-exporter-http
+    static_configs:
+      - targets: [
+        'rpi3:9100',
+        'rpi3bp:9100'
+      ]
+    relabel_configs:
+      # Add label for stack
+      - source_labels: [__address__]
+        regex: ".*"
+        action: replace
+        target_label: swarm_stack
+        replacement: 'monitoring'
+      # Add label for service
+      - source_labels: [__address__]
+        regex: ".*"
+        target_label: swarm_service
+        replacement: 'monitoring_node-exporter'

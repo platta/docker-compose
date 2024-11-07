@@ -1,0 +1,38 @@
+server:
+  http_listen_address: 0.0.0.0
+  http_listen_port: 9080
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://monitoring_loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: system
+    static_configs:
+    - targets:
+        - localhost
+      labels:
+        job: varlogs
+        host: brix
+        __path__: /var/log/*log
+
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        # Only include containers labeled for scraping.
+        filters:
+          - name: label
+            values: [promtail_scrape=true]
+    relabel_configs:
+      # Pull Node id.
+      - source_labels: [__meta_docker_container_label_com_docker_swarm_node_id]
+        target_label: swarm_node
+      # Pull stack name.
+      - source_labels: [__meta_docker_container_label_com_docker_stack_namespace]
+        target_label: swarm_stack
+      # Pull service name.
+      - source_labels: [__meta_docker_container_label_com_docker_swarm_service_name]
+        target_label: swarm_service

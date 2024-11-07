@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  #-----------------------------------------------------------------------------
+  # DuckDNS
+  # Maintains a DuckDNS record with your public IP.
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    environment:
+      # Comma separated (no space) list of subdomains to maintain (e.g.
+      # subdomain1,subdomain2 without the "duckdns.org").
+      SUBDOMAINS: $SUBDOMAINS
+      # Inject authentication token.
+      FILE__TOKEN: /run/secrets/duckdns_token
+
+    secrets:
+      - duckdns_token
+
+    networks:
+      - net
+
+
+secrets:
+  duckdns_token:
+    external: true
+
+networks:
+  net:
+    driver: overlay

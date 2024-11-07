@@ -1,0 +1,113 @@
+version: "3.8"
+
+services:
+  #-----------------------
+  # Botpress server
+  server:
+    image: botpress/server:latest
+
+    # Modify the default command so we're just running the botpress server.
+    command: /botpress/bp --auto-migrate
+
+    environment:
+      - DATABASE_URL=postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:5432/$DB_DATABASE
+      - BP_MODULE_NLU_DUCKLINGURL=http://$LANG_HOST:8000
+      - BP_MODULE_NLU_LANGUAGESOURCES=[{"endpoint":"http://$LANG_HOST:3100"}]
+      - BP_PRODUCTION=true
+      - BPFS_STORAGE=database
+      - EXTERNAL_URL=$EXTERNAL_URL
+
+    volumes:
+      - server_data:/botpress/data
+
+
+    networks:
+      - net
+      - nginx_net
+
+    depends_on:
+      - "postgres"
+      - "lang"
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: botpress|server
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "botpress|server"
+
+  #---------------------------
+  # Language processing server
+  lang:
+    image: botpress/server:latest
+    hostname: $LANG_HOST
+
+    # Expose the duckling and language server ports, since they are not exposed
+    # by default.
+    expose:
+      - "8000"
+      - "3100"
+
+    # Modify the default command so we're running duckling and the language
+    # server.
+    command: bash -c "./duckling -p 8000 & ./bp lang --langDir /botpress/lang --port 3100"
+
+    volumes:
+      - lang_data:/botpress/lang
+
+    networks:
+      - net
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: botpress|lang
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "botpress|lang"
+
+  #--------------------
+  # PostgreSQL database
+  postgres:
+    image: postgres:14-bullseye
+    hostname: $DB_HOST
+
+    environment:
+      POSTGRES_USER: $DB_USER
+      POSTGRES_PASSWORD: $DB_PASSWORD
+      POSTGRES_DB: $DB_DATABASE
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - net
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus-job: botpress|postgres
+
+    logging:
+      options:
+        # Log tagging for querying via Loki.
+        tag: "botpress|postgres"
+
+volumes:
+  lang_data:
+    driver: local
+  server_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  net:
+    driver: overlay
+  nginx_net:
+    external: true

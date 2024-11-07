@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  #-----------------------------------------------------------------------------
+  # Foundry VTT
+  # Virtual Table Top for gaming.
+  foundry:
+    image: felddy/foundryvtt:release
+
+    volumes:
+      - data:/data
+
+    environment:
+      FOUNDRY_USERNAME: $FOUNDRY_USERNAME
+      FOUNDRY_PASSWORD: $FOUNDRY_PASSWORD
+      FOUNDRY_ADMIN_KEY: $FOUNDRY_ADMIN_KEY
+
+    networks:
+      - net
+      - shared_net
+
+
+volumes:
+  data:
+    driver: local
+
+networks:
+  net:
+    driver: overlay
+  shared_net:
+    external: true

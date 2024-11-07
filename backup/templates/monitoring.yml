@@ -1,0 +1,180 @@
+# Monitoring stack
+version: "3.8"
+
+services:
+  #-----------------------------------------------------------------------------
+  # Prometheus
+  # Collects metrics from hosts and containers and makes them available to
+  # Grafana.
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      # Tell Prometheus where to find its config file.
+      - --config.file=/etc/prometheus/prometheus.yml
+
+      # Enable the ability to reload rules dynamically.
+      - --web.enable-lifecycle
+
+    user: root
+
+    configs:
+      # Inject Prometheus config.
+      - source: monitoring_prometheus_prometheus.yml_2024-01-08_1432
+        target: /etc/prometheus/prometheus.yml
+
+    volumes:
+      # Persist Prometheus data.
+      - prometheus_data:/prometheus
+
+      # Give Prometheus access to Docker.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    networks:
+      - net
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus_scrape: "true"
+        prometheus_port: "9090"
+
+  #-----------------------------------------------------------------------------
+  # Node exporter
+  # Publishes host metrics for Prometheus to scrape.
+  node-exporter:
+    image: prom/node-exporter:latest
+
+    command:
+      # Tell node-exporter where to find the host's root.
+      - --path.rootfs=/hostfs
+
+    volumes:
+      # Mount the root of the host inside the container for scraping.
+      - /:/hostfs
+
+    networks:
+      - net
+
+    deploy:
+      # Deploy globally so one instance runs on each Swarm node.
+      mode: global
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus_scrape: "true"
+        prometheus_port: "9100"
+
+      update_config:
+        # When updating the service, start the new container first, then wait 10
+        # seconds before killing the old one. Ensures continuity.
+        order: start-first
+        delay: 10s
+
+  #-----------------------------------------------------------------------------
+  # Loki
+  # Collects logs from containers and makes them available to Grafana.
+  loki:
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/loki.yml
+
+    configs:
+      # Inject Loki config.
+      - source: monitoring_loki_loki.yml_2024-01-19_1355
+        target: /etc/loki/loki.yml
+
+    volumes:
+      # Persist Loki data.
+      - loki_data:/loki
+
+    networks:
+      - net
+
+    ports:
+      # Actually publish this port so that other hosts can push metrics to Loki.
+      - 3100:3100
+
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus_scrape: "true"
+        prometheus_port: "3100"
+
+  #-----------------------------------------------------------------------------
+  # Promtail
+  # Publishes Docker log information to Loki.
+  promtail:
+    image: grafana/promtail:latest
+
+    user: root
+
+    configs:
+      # Inject Promtail config.
+      - source: monitoring_promtail_config.yml_2024-01-08_1431
+        target: /etc/promtail/config.yml
+
+    volumes:
+      # Grant access to Docker.
+      - /var/lib/docker/containers:/var/lib/docker/containers
+
+      # Give access to Docker.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    networks:
+      - net
+
+    deploy:
+      mode: global
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus_scrape: "true"
+        prometheus_port: "9080"
+
+  #-----------------------------------------------------------------------------
+  # Grafana
+  # Primary monitoring and alerting solution.
+  grafana:
+    image: grafana/grafana-oss:latest
+    user: root
+
+    configs:
+      # Inject Grafana data.
+      - source: monitoring_grafana_grafana.ini_2024-01-18_0845
+        target: /etc/grafana/grafana.ini
+
+    volumes:
+      # Persist Grafana data.
+      - grafana_data:/var/lib/grafana
+
+    networks:
+      - net
+      - shared_net
+
+    deploy:
+      labels:
+        # Prometheus job label for querying via Prometheus.
+        prometheus_scrape: "true"
+        prometheus_port: "3000"
+
+configs:
+  monitoring_prometheus_prometheus.yml_2024-01-08_1432:
+    external: true
+  monitoring_loki_loki.yml_2024-01-19_1355:
+    external: true
+  monitoring_promtail_config.yml_2024-01-08_1431:
+    external: true
+  monitoring_grafana_grafana.ini_2024-01-18_0845:
+    external: true
+
+volumes:
+  prometheus_data:
+    driver: local
+  loki_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  net:
+    driver: overlay
+  shared_net:
+    external: true

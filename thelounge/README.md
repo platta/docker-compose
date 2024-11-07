@@ -29,3 +29,13 @@ certificate and private key, respectively.
 
 Once you disconnect and reconnect, you should authenticate using the correct
 certificate.
+
+apk --update --no-cache --virtual build-deps add sqlite
+
+cd /var/opt/thelounge/logs
+
+sqlite3
+.open aplatt.sqlite3
+delete from messages where time < strftime('%s', datetime('now', '-30 day'))*1000;
+vacuum;
+.quit

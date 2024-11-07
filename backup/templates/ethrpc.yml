@@ -1,0 +1,343 @@
+#-------------------------------------------------------------------------------
+# Ethereum RPC Node Components
+#-------------------------------------------------------------------------------
+version: "3.8"
+
+# NOTE: To change which network you run on, you need to make multiple changes.
+# 1. services.reth.volumes - Change the mapped path for the data volume.
+# 2. services.reth.command - Change --chain argument.
+# 3. services.lighthouse.command - Change --network argument.
+# 4. services.lighthouse.command - Change --checkpoint-sync-url argument.
+
+# NOTE: Depending on the name you give the stack, you may need to update the
+# --execution-endpoint argument in services.lighthouse.command. The expected
+# name is based on stackname_servicename, so a stack name of foo would need the
+# value foo_reth.
+
+# Define Swarm Secret names up top.
+x-jwt-secret: &jwt-secret ethrpc_jwt_secret
+x-passphrase: &passphrase ethrpc_passphrase
+x-authority-crt: &authority-crt ethrpc_authority_crt
+x-vouch-1-crt: &vouch-1-crt ethrpc_vouch_1_crt
+x-vouch-1-key: &vouch-1-key ethrpc_vouch_1_key
+x-dirk-1-crt: &dirk-1-crt ethrpc_dirk_1_crt
+x-dirk-1-key: &dirk-1-key ethrpc_dirk_1_key
+x-dirk-2-crt: &dirk-2-crt ethrpc_dirk_2_crt
+x-dirk-2-key: &dirk-2-key ethrpc_dirk_2_key
+x-dirk-3-crt: &dirk-3-crt ethrpc_dirk_3_crt
+x-dirk-3-key: &dirk-3-key ethrpc_dirk_3_key
+
+# Define Swarm Config names up top.
+x-vouch-1-yml: &vouch-1-yml ethrpc_vouch_1_yml_2024-01-15_2145
+x-dirk-1-yml: &dirk-1-yml ethrpc_dirk_1_yml_2024-02-08_0940
+x-dirk-2-yml: &dirk-2-yml ethrpc_dirk_2_yml_2024-02-08_0940
+x-dirk-3-yml: &dirk-3-yml ethrpc_dirk_3_yml_2024-02-08_0940
+x-watcher-keys-file: &watcher-keys-file ethrpc_watcher_keys.txt_2024-01-18_1005
+
+# Define coin db mountpoint (or comment out the driver_opts section).
+x-reth-data-path: &reth-data-path /coins/lib/docker/volumes/ethrpc_reth_holesky
+x-lighthouse-data-path: &lighthouse-data-path /coins/lib/docker/volumes/ethrpc_lighthouse_data
+
+# Definitions of the vouch service that are shared.
+x-vouch: &vouch-service
+  image: attestant/vouch:latest
+  command: ["--base-dir=/config"]
+  networks:
+    - net
+    - monitoring_net
+
+  labels:
+    # Enable logs capture.
+    promtail_scrape: "true"
+
+  deploy:
+    labels:
+      # Prometheus job label for querying via Prometheus.
+      prometheus_scrape: "true"
+      prometheus_port: "8081"
+
+# Definitions of the dirk service that are shared.
+x-dirk: &dirk-service
+  image: attestant/dirk:latest
+
+  command: ["--base-dir=/config"]
+
+  networks:
+    - net
+    - monitoring_net
+
+  labels:
+    # Enable logs capture.
+    promtail_scrape: "true"
+
+  deploy:
+    labels:
+      # Prometheus job label for querying via Prometheus.
+      prometheus_scrape: "true"
+      prometheus_port: "8081"
+
+services:
+  #-----------------------------------------------------------------------------
+  # Reth
+  # Rust-based Ethereum execution client.
+  reth:
+    image: reth:local
+
+    ports:
+      - 30303:30303 # peering
+
+    secrets:
+      - source: *jwt-secret
+        target: /root/jwt/jwt.hex
+
+    volumes:
+      - reth_holesky:/root/.local/share/reth/holesky/db
+      - reth_logs:/root/rethlogs
+
+    command: >
+      node
+      --chain holesky
+      --metrics 0.0.0.0:9001
+      --log.file.directory /root/rethlogs
+      --authrpc.addr 0.0.0.0
+      --authrpc.port 8551
+      --authrpc.jwtsecret /root/jwt/jwt.hex
+      --http --http.addr 0.0.0.0 --http.port 8545
+      --http.api "eth,net,web3"
+
+    networks:
+      - net
+      - monitoring_net
+
+    labels:
+      # Enable logs capture.
+      promtail_scrape: "true"
+
+    deploy:
+      labels:
+        # Enable metrics capture.
+        prometheus_scrape: "true"
+        prometheus_port: "9001"
+
+  #-----------------------------------------------------------------------------
+  # Lighthouse
+  # Rust-based Ethereum consensus client.
+  lighthouse:
+    image: sigp/lighthouse:latest
+
+    ports:
+      - 9000:9000 # peering
+      - 9000:9000/udp # peering
+
+    secrets:
+      - source: *jwt-secret
+        target: /root/jwt/jwt.hex
+
+    volumes:
+      - lighthouse_data:/root/.lighthouse
+
+    command: >
+      lighthouse bn
+      --network holesky
+      --http --http-address 0.0.0.0
+      --execution-endpoint http://ethrpc_reth:8551
+      --metrics --metrics-address 0.0.0.0
+      --execution-jwt /root/jwt/jwt.hex
+      --checkpoint-sync-url https://prater.checkpoint.sigp.io
+
+
+    networks:
+      - net
+      - monitoring_net
+
+    labels:
+      # Enable logs capture.
+      promtail_scrape: "true"
+
+    deploy:
+      labels:
+        # Enable metrics capture.
+        prometheus_scrape: "true"
+        prometheus_port: "5054"
+
+  #-----------------------------------------------------------------------------
+  # Vouch 1
+  vouch_1:
+    <<: *vouch-service
+
+    secrets:
+      - source: *vouch-1-crt
+        target: /config/certs/vouch.crt
+      - source: *vouch-1-key
+        target: /config/certs/vouch.key
+      - source: *authority-crt
+        target: /config/certs/authority.crt
+
+    configs:
+      - source: *vouch-1-yml
+        target: /config/vouch.yml
+
+  #-----------------------------------------------------------------------------
+  # Dirk 1
+  dirk_1:
+    <<: *dirk-service
+
+    secrets:
+      - source: *passphrase
+        target: /config/passphrases/account-passphrase.txt
+      - source: *dirk-1-crt
+        target: /config/certs/dirk.crt
+      - source: *dirk-1-key
+        target: /config/certs/dirk.key
+      - source: *authority-crt
+        target: /config/certs/authority.crt
+
+    configs:
+      - source: *dirk-1-yml
+        target: /config/dirk.yml
+
+    volumes:
+      - dirk_1_data:/data
+
+  #-----------------------------------------------------------------------------
+  # Dirk 2
+  dirk_2:
+    <<: *dirk-service
+
+    secrets:
+      - source: *passphrase
+        target: /config/passphrases/account-passphrase.txt
+      - source: *dirk-2-crt
+        target: /config/certs/dirk.crt
+      - source: *dirk-2-key
+        target: /config/certs/dirk.key
+      - source: *authority-crt
+        target: /config/certs/authority.crt
+
+    configs:
+      - source: *dirk-2-yml
+        target: /config/dirk.yml
+
+    volumes:
+      - dirk_2_data:/data
+
+  #-----------------------------------------------------------------------------
+  # Dirk 3
+  dirk_3:
+    <<: *dirk-service
+
+    secrets:
+      - source: *passphrase
+        target: /config/passphrases/account-passphrase.txt
+      - source: *dirk-3-crt
+        target: /config/certs/dirk.crt
+      - source: *dirk-3-key
+        target: /config/certs/dirk.key
+      - source: *authority-crt
+        target: /config/certs/authority.crt
+
+    configs:
+      - source: *dirk-3-yml
+        target: /config/dirk.yml
+
+    volumes:
+      - dirk_3_data:/data
+
+  #-----------------------------------------------------------------------------
+  # Eth Validator Watcher
+  #watcher:
+  #  image: ghcr.io/kilnfi/eth-validator-watcher:latest
+  #  command: >
+  #    --beacon-url=http://ethrpc_lighthouse:5052
+  #    --execution-url=http://ethrpc_reth:8551
+  #    --pubkeys-file-path=/data/keys.txt
+  #    --fee-recipient=0xDebBFD733902B20EF680aBAe2D8b827dD6c9343B
+  #    --beacon-type=lighthouse
+  #
+  #  configs:
+  #    - source: *watcher-keys-file
+  #      target: /data/keys.txt
+  #
+  #  networks:
+  #    - net
+  #    - monitoring_net
+  #
+  #  labels:
+  #    # Enable logs capture.
+  #    promtail_scrape: "true"
+  #
+  #  deploy:
+  #    resources:
+  #      limits:
+  #        memory: 5g
+  #    labels:
+  #      # Enable metrics capture.
+  #      prometheus_scrape: "true"
+  #      prometheus_port: "8000"
+
+
+secrets:
+  *jwt-secret :
+    external: true
+  *passphrase :
+    external: true
+  *authority-crt :
+    external: true
+  *vouch-1-crt :
+    external: true
+  *vouch-1-key :
+    external: true
+  *dirk-1-crt :
+    external: true
+  *dirk-1-key :
+    external: true
+  *dirk-2-crt :
+    external: true
+  *dirk-2-key :
+    external: true
+  *dirk-3-crt :
+    external: true
+  *dirk-3-key :
+    external: true
+
+configs:
+  *vouch-1-yml :
+    external: true
+  *dirk-1-yml :
+    external: true
+  *dirk-2-yml :
+    external: true
+  *dirk-3-yml :
+    external: true
+  *watcher-keys-file :
+    external: true
+
+volumes:
+  reth_holesky:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: *reth-data-path
+  reth_logs:
+    driver: local
+  lighthouse_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: *lighthouse-data-path
+  dirk_1_data:
+    driver: local
+  dirk_2_data:
+    driver: local
+  dirk_3_data:
+    driver: local
+
+networks:
+  net:
+    driver: overlay
+    # Must be attachable because we're going to execute ethdo against it.
+    attachable: true
+  monitoring_net:
+    external: true
